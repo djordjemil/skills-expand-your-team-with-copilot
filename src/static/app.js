@@ -34,6 +34,16 @@ document.addEventListener("DOMContentLoaded", () => {
     technology: { label: "Technology", color: "#e8eaf6", textColor: "#3949ab" },
   };
 
+  // Escape special HTML characters to prevent XSS in attribute values
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
   // State for activities and filters
   let allActivities = {};
   let currentFilter = "all";
@@ -569,6 +579,12 @@ document.addEventListener("DOMContentLoaded", () => {
         `
         }
       </div>
+      <div class="share-buttons">
+        <span class="share-label">Share:</span>
+        <button class="share-btn share-twitter" data-activity="${escapeHtml(name)}" data-description="${escapeHtml(details.description)}" aria-label="Share on X (Twitter)">𝕏</button>
+        <button class="share-btn share-facebook" data-activity="${escapeHtml(name)}" aria-label="Share on Facebook">f</button>
+        <button class="share-btn share-copy" data-activity="${escapeHtml(name)}" aria-label="Copy link">🔗</button>
+      </div>
     `;
 
     // Add click handlers for delete buttons
@@ -586,6 +602,61 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
     }
+
+    // Add click handlers for share buttons
+    const shareUrl = `${window.location.origin}${window.location.pathname}?activity=${encodeURIComponent(name)}`;
+
+    const twitterBtn = activityCard.querySelector(".share-twitter");
+    twitterBtn.addEventListener("click", () => {
+      const text = `Check out this activity at Mergington High School: ${name} - ${details.description}`;
+      window.open(
+        `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`,
+        "_blank",
+        "noopener,noreferrer"
+      );
+    });
+
+    const facebookBtn = activityCard.querySelector(".share-facebook");
+    facebookBtn.addEventListener("click", () => {
+      window.open(
+        `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+        "_blank",
+        "noopener,noreferrer"
+      );
+    });
+
+    const copyBtn = activityCard.querySelector(".share-copy");
+    copyBtn.addEventListener("click", () => {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+          copyBtn.textContent = "✓";
+          setTimeout(() => {
+            copyBtn.textContent = "🔗";
+          }, 2000);
+        }).catch(() => {
+          showMessage("Could not copy link. Please copy the URL manually.", "error");
+        });
+      } else {
+        // Fallback for non-HTTPS environments
+        const textarea = document.createElement("textarea");
+        textarea.value = shareUrl;
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+          document.execCommand("copy");
+          copyBtn.textContent = "✓";
+          setTimeout(() => {
+            copyBtn.textContent = "🔗";
+          }, 2000);
+        } catch {
+          showMessage("Could not copy link. Please copy the URL manually.", "error");
+        } finally {
+          document.body.removeChild(textarea);
+        }
+      }
+    });
 
     activitiesList.appendChild(activityCard);
   }
